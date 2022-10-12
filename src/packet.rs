@@ -16,7 +16,7 @@ enum UcPacket {
     JM(AddressPair, String),
     UM([u8; 6]),
     KA(AddressPair),
-    PV(AddressPair, String),
+    PV(AddressPair, String, bool),
     FR(AddressPair, u16, String)
 }
 
@@ -54,12 +54,26 @@ fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Result<
             write_address_pair(ap, w)?;
         }
 
-        UcPacket::PV(ap, buf) => {
-            let size: u16 = ((buf.len() + 4) as u16).try_into().unwrap();
-            w.write(&size.to_le_bytes())?;
+        UcPacket::PV(ap, name, val) => {
+            let size: u16 = ((name.len() + 4) as u16).try_into().unwrap();
+
+            // 7 bytes of extra padding at the end
+            w.write(&(size + 2 + 7).to_le_bytes())?;
             w.write(&[b'P', b'V'])?;
             write_address_pair(ap, w)?;
-            w.write(buf.as_bytes())?;
+
+            // parameter name
+            w.write(name.as_bytes())?;
+
+            // padding with 5 zeros
+            w.write(&[0u8,0,0,0,0])?;
+
+            // 2 bytes at the end
+            if *val {
+                w.write(&[0x80, 0x3f])?;
+            } else {
+                w.write(&[0x00, 0x00])?;
+            }
         }
 
         UcPacket::FR(ap, some_number, buf) => {
@@ -96,8 +110,6 @@ fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacket> {
     let mut buf = Vec::new();
     stream.take(size as u64).read_to_end(&mut buf)?;
 
-    println!("{:?}", buf);
-
     parse_packet_contents(&buf)
 }
 
@@ -117,7 +129,16 @@ fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
                 a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
                 b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
             };
-            Ok(UcPacket::PV(address_pair, str::from_utf8(&bytes[6..]).unwrap().to_string()))
+            
+            let data_len = bytes.len() - 7;
+            // 803f or 0000
+            let val = bytes[bytes.len()-1] == 0x3f;
+
+            Ok(UcPacket::PV(
+                address_pair,
+                str::from_utf8(&bytes[6..data_len]).unwrap().to_string(),
+                val
+            ))
         }
         (b'U',b'M') => {
             let payload: [u8; 6] = bytes[2..8].try_into().expect("Not enough bytes for UM packet");
@@ -235,19 +256,19 @@ mod test {
             0x80,0x3f
         ];
 
-        let packet = UcPacket::PV(AddressPair { a: 0x6b, b: 0x66 }, "line/ch1/mute".to_string());
+        let packet = UcPacket::PV(AddressPair { a: 0x6b, b: 0x66 }, "line/ch1/mute".to_string(), true);
         
         {
             let out = ser(&packet); 
             // TODO - figure out if PV packet is always padded to constant size of 20?
-            //assert_eq!(out, buf);
+            assert_eq!(out, buf);
         }
 
         {
             // TODO - figure out what to do with 0s that won't deserialize as utf-8
-            //let packet_2 = deser(&buf);
+            let packet_2 = deser(&buf);
 
-            //assert_eq!(packet, packet_2);
+            assert_eq!(packet, packet_2);
         }
     }
 }
