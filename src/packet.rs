@@ -236,7 +236,6 @@ mod test {
         }
     }
 
-
     #[test]
     fn packet_pv() {
         // mute packet
@@ -256,18 +255,57 @@ mod test {
             0x80,0x3f
         ];
 
-        let packet = UcPacket::PV(AddressPair { a: 0x6b, b: 0x66 }, "line/ch1/mute".to_string(), true);
+        let packet = UcPacket::PV(
+            AddressPair { a: 0x6b, b: 0x66 },
+            "line/ch1/mute".to_string(),
+            true
+        );
         
         {
             let out = ser(&packet); 
-            // TODO - figure out if PV packet is always padded to constant size of 20?
             assert_eq!(out, buf);
         }
 
         {
-            // TODO - figure out what to do with 0s that won't deserialize as utf-8
             let packet_2 = deser(&buf);
+            assert_eq!(packet, packet_2);
+        }
+    }
 
+    #[test]
+    fn packet_jm() {
+        // mute packet
+        let buf = vec![
+            // UC01
+            0x55,0x43,0x00,0x01,
+            0x4f,0x00,
+            // JM
+            0x4a,0x4d,
+            0x66,0x00,0x67,0x00,
+            // json size
+            0x45,0x00,0x00,0x00,
+            // json data
+            0x7b,0x22,0x69,0x64,0x22,0x3a,0x20,0x22,0x49,0x6e
+            ,0x76,0x6f,0x6b,0x65,0x4d,0x65,0x74,0x68,0x6f,0x64,0x22,0x2c,0x22,0x75,0x72,0x6c
+            ,0x22,0x3a,0x20,0x22,0x22,0x2c,0x22,0x6d,0x65,0x74,0x68,0x6f,0x64,0x22,0x3a,0x20
+            ,0x22,0x67,0x65,0x74,0x4f,0x70,0x74,0x69,0x6f,0x6e,0x73,0x22,0x2c,0x22,0x63,0x61
+            ,0x6c,0x6c,0x69,0x64,0x22,0x3a,0x20,0x31,0x30,0x30,0x7d,
+        ];
+
+        let json = r#"{"id": "InvokeMethod","url": "","method": "getOptions","callid": 100}"#;
+
+        let packet = UcPacket::JM(
+            AddressPair { a: 0x66, b: 0x67 },
+            json.to_string(),
+        );
+        
+        {
+            let out = ser(&packet); 
+            assert_eq!(out, buf);
+        }
+
+        {
+            let packet_2 = deser(&buf);
             assert_eq!(packet, packet_2);
         }
     }
