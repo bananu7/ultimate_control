@@ -148,6 +148,21 @@ mod test {
     use super::*;
     use std::io::{Cursor, Read, Seek, SeekFrom};
 
+    fn ser(packet: &UcPacket) -> Vec<u8> {
+        let mut c = Cursor::new(Vec::new());
+        write_packet(&packet, &mut c).unwrap();
+        
+        let mut out = Vec::new();
+        c.seek(SeekFrom::Start(0)).unwrap();
+        c.read_to_end(&mut out).unwrap();
+        out
+    }
+
+    fn deser(buf: &Vec<u8>) -> UcPacket {
+        let mut stream = Cursor::new(&buf);
+        read_packet(&mut stream).unwrap()
+    }
+
     #[test]
     fn packet_um() {
         let buf = vec![
@@ -164,19 +179,12 @@ mod test {
         let packet = UcPacket::UM([0x00,0x00,0x65,0x00,0x5e,0xf1]);
         
         {
-            let mut c = Cursor::new(Vec::new());
-            write_packet(&packet, &mut c).unwrap();
-            
-            let mut out = Vec::new();
-            c.seek(SeekFrom::Start(0)).unwrap();
-            c.read_to_end(&mut out).unwrap();
-
+            let out = ser(&packet);
             assert_eq!(out, buf);
         }
 
         {
-            let mut stream = Cursor::new(&buf);
-            let packet_2 = read_packet(&mut stream).unwrap();
+            let packet_2 = deser(&buf);
             assert_eq!(packet, packet_2);
         }
     }
