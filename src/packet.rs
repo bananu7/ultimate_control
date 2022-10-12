@@ -215,4 +215,39 @@ mod test {
         }
     }
 
+
+    #[test]
+    fn packet_pv() {
+        // mute packet
+        let buf = vec![
+            // UC01
+            0x55,0x43,0x00,0x01,
+            // size - 26 bytes
+            0x1a,0x00,
+            // PV
+            0x50,0x56,
+            // 6b00 -> 6600 (k->f) // the response sends (f->k)
+            0x6b,0x00,0x66,0x00,
+            // string: line/ch1/mute
+            // with zeros at the end
+            0x6c,0x69,0x6e,0x65,0x2f,0x63,0x68,0x31,0x2f,0x6d,0x75,0x74,0x65,0x00,0x00,0x00,0x00,0x00,
+            // this isn't always here - sometimes it's 00 00
+            0x80,0x3f
+        ];
+
+        let packet = UcPacket::PV(AddressPair { a: 0x6b, b: 0x66 }, "line/ch1/mute".to_string());
+        
+        {
+            let out = ser(&packet); 
+            // TODO - figure out if PV packet is always padded to constant size of 20?
+            //assert_eq!(out, buf);
+        }
+
+        {
+            // TODO - figure out what to do with 0s that won't deserialize as utf-8
+            //let packet_2 = deser(&buf);
+
+            //assert_eq!(packet, packet_2);
+        }
+    }
 }
