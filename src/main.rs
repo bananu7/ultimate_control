@@ -3,6 +3,7 @@ use std::io::prelude::*;
 use std::net::TcpStream;
 
 pub mod header;
+pub mod packet;
 
 fn show(bs: &[u8]) -> String {
     let mut visible = String::new();
