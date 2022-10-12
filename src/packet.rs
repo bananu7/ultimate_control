@@ -189,4 +189,30 @@ mod test {
         }
     }
 
+    #[test]
+    fn packet_ka() {
+        let buf = vec![
+            // UC01
+            0x55,0x43,0x00,0x01,
+            // size - 6 bytes
+            0x06,0x00,
+            // 4b(K), 41(A)
+            0x4b,0x41,
+            // 6b00 -> 6600 (k->f)
+            0x6b,0x00,0x66,0x00
+        ];
+
+        let packet = UcPacket::KA(AddressPair { a: 0x6b, b: 0x66 });
+        
+        {
+            let out = ser(&packet);
+            assert_eq!(out, buf);
+        }
+
+        {
+            let packet_2 = deser(&buf);
+            assert_eq!(packet, packet_2);
+        }
+    }
+
 }
