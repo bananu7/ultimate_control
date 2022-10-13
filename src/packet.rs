@@ -17,7 +17,8 @@ pub enum UcPacket {
     UM([u8; 6]),
     KA(AddressPair),
     PV(AddressPair, String, bool),
-    FR(AddressPair, u16, String)
+    FR(AddressPair, u16, String),
+    ZM(AddressPair, Vec<u8>),
 }
 
 fn write_address_pair<Writer: Write>(ap: &AddressPair, w: &mut Writer) -> std::io::Result<()> {
@@ -77,12 +78,19 @@ pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Res
         }
 
         UcPacket::FR(ap, some_number, buf) => {
-            let size: u16 = ((buf.len() + 6) as u16).try_into().unwrap();
+            let size: u16 = ((buf.len() + 8) as u16).try_into().unwrap();
             w.write(&size.to_le_bytes())?;
             w.write(&[b'F', b'R'])?;
             write_address_pair(ap, w)?;
             w.write(&some_number.to_le_bytes())?;
             w.write(buf.as_bytes())?;
+        }
+
+        UcPacket::ZM(ap, buf) => {
+            let size: u16 = ((buf.len() + 6) as u16).try_into().unwrap();
+            w.write(&size.to_le_bytes())?;
+            w.write(&[b'Z', b'M'])?;
+            w.write(buf)?;
         }
     }
 
@@ -114,7 +122,6 @@ pub fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacke
 }
 
 fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
-    println!("{}{}", bytes[0], bytes[1]);
     match (bytes[0], bytes[1]) {
         (b'J',b'M') => {
             let address_pair = AddressPair {
@@ -160,7 +167,18 @@ fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
             };
             Ok(UcPacket::KA(address_pair))
         }
-        _ => Err(Error::new(ErrorKind::Other, "Invalid packet"))
+        (b'Z',b'M') => {
+            let address_pair = AddressPair {
+                a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
+                b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
+            };
+
+            Ok(UcPacket::ZM(address_pair, bytes[6..].to_vec()))
+        }
+        _ => {
+            println!("Unknown packet encountered - {}{}", bytes[0], bytes[1]);
+            Err(Error::new(ErrorKind::Other, "Invalid packet"))
+        }
     }
 }
 
