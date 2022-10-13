@@ -90,6 +90,7 @@ pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Res
             let size: u16 = ((buf.len() + 6) as u16).try_into().unwrap();
             w.write(&size.to_le_bytes())?;
             w.write(&[b'Z', b'M'])?;
+            write_address_pair(ap, w)?;
             w.write(buf)?;
         }
     }
