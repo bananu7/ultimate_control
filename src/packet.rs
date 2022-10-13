@@ -105,7 +105,7 @@ pub fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacke
         return Err(Error::new(ErrorKind::Other, "header magic bytes invalid"));
     }
 
-    let size: u16 = (header[4] as u16) + (header[5] as u16) << 8;
+    let size: u16 = (header[4] as u16) + ((header[5] as u16) << 8);
 
     let mut buf = Vec::new();
     stream.take(size as u64).read_to_end(&mut buf)?;
