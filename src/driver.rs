@@ -1,5 +1,6 @@
 use std::net::TcpStream;
 use crate::packet::*;
+use crate::types::*;
 
 pub struct UcDriver {
     stream: TcpStream

@@ -1,26 +1,28 @@
+use std::io::SeekFrom;
+use std::io::Cursor;
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind};
 use std::str;
-//use byteorder::{ByteOrder, LittleEndian}; 
 
-#[derive(Debug)]
-#[derive(PartialEq)]
-pub struct AddressPair {
-    pub a: u16,
-    pub b: u16,
+use crate::types::*;
+
+// those are convenience functions that operate directly on memory
+pub fn ser(packet: &UcPacket) -> Vec<u8> {
+    let mut c = Cursor::new(Vec::new());
+    write_packet(&packet, &mut c).unwrap();
+    
+    let mut out = Vec::new();
+    c.seek(SeekFrom::Start(0)).unwrap();
+    c.read_to_end(&mut out).unwrap();
+    out
 }
 
-#[derive(Debug)]
-#[derive(PartialEq)]
-pub enum UcPacket {
-    JM(AddressPair, String),
-    UM([u8; 6]),
-    KA(AddressPair),
-    PV(AddressPair, String, bool),
-    FR(AddressPair, u16, String),
-    ZM(AddressPair, Vec<u8>),
+pub fn deser(buf: &Vec<u8>) -> UcPacket {
+    let mut stream = Cursor::new(&buf);
+    read_packet(&mut stream).unwrap()
 }
 
+// Those functions operate on synchronous Read/Write objects
 fn write_address_pair<Writer: Write>(ap: &AddressPair, w: &mut Writer) -> std::io::Result<()> {
     w.write(&ap.a.to_le_bytes())?;
     w.write(&ap.b.to_le_bytes())?;
@@ -122,7 +124,7 @@ pub fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacke
     parse_packet_contents(&buf)
 }
 
-fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
+pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
     match (bytes[0], bytes[1]) {
         (b'J',b'M') => {
             let address_pair = AddressPair {
@@ -186,22 +188,6 @@ fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::io::{Cursor, Read, Seek, SeekFrom};
-
-    fn ser(packet: &UcPacket) -> Vec<u8> {
-        let mut c = Cursor::new(Vec::new());
-        write_packet(&packet, &mut c).unwrap();
-        
-        let mut out = Vec::new();
-        c.seek(SeekFrom::Start(0)).unwrap();
-        c.read_to_end(&mut out).unwrap();
-        out
-    }
-
-    fn deser(buf: &Vec<u8>) -> UcPacket {
-        let mut stream = Cursor::new(&buf);
-        read_packet(&mut stream).unwrap()
-    }
 
     #[test]
     fn packet_um() {
