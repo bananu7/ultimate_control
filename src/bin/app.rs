@@ -1,7 +1,4 @@
-pub mod header;
-pub mod packet;
-pub mod driver;
-use driver::*;
+use ultimate_control::driver::*;
 
 fn main() -> std::io::Result<()> {
     if let Ok(mut driver) = UcDriver::new() {
@@ -11,7 +8,9 @@ fn main() -> std::io::Result<()> {
         driver.subscribe()?;
         driver.ch1_mute(true)?;
 
-        driver.read_response()?;
+        loop {
+            driver.read_response()?;
+        }
     } else {
         println!("Couldn't connect to server...");
     }
