@@ -5,14 +5,14 @@ use std::str;
 
 #[derive(Debug)]
 #[derive(PartialEq)]
-struct AddressPair {
-    a: u16,
-    b: u16,
+pub struct AddressPair {
+    pub a: u16,
+    pub b: u16,
 }
 
 #[derive(Debug)]
 #[derive(PartialEq)]
-enum UcPacket {
+pub enum UcPacket {
     JM(AddressPair, String),
     UM([u8; 6]),
     KA(AddressPair),
@@ -26,7 +26,7 @@ fn write_address_pair<Writer: Write>(ap: &AddressPair, w: &mut Writer) -> std::i
     Ok(())
 }
 
-fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Result<()>  {
+pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Result<()>  {
     w.write(&[b'U', b'C', 0, 1])?;
 
     match p {
@@ -89,7 +89,7 @@ fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Result<
     Ok(())
 }
 
-fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacket> {
+pub fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacket> {
     let mut header = [0u8; 6];
     let nbytes = stream.read(&mut header)?;
 
