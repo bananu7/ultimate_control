@@ -29,7 +29,7 @@ impl UcDriver {
             &UcPacket::PV (
                 AddressPair{ a: 0x6b, b: 0x66 },
                 "line/ch1/mute".to_string(),
-                mute
+                if mute { 1.0 } else { 0.0 }
             ),
             &mut self.stream
         )
