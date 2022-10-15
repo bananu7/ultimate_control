@@ -98,8 +98,12 @@ impl AsyncUcDriver {
     }
 
     pub async fn read_response(&mut self) {
-        while let Some(packet) = self.reader.next().await {
-            println!("Received packet {:?}", packet);
+        while let Some(data) = self.reader.next().await {
+            match data {
+                Ok(packet) => println!("<- {:02X?}", packet),
+                Err(e) => println!("Packet parsing failed! - {}", e.to_string())
+            }
+            
         }
     }
 
