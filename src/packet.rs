@@ -1,26 +1,28 @@
+use std::io::SeekFrom;
+use std::io::Cursor;
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind};
 use std::str;
-//use byteorder::{ByteOrder, LittleEndian}; 
 
-#[derive(Debug)]
-#[derive(PartialEq)]
-pub struct AddressPair {
-    pub a: u16,
-    pub b: u16,
+use crate::types::*;
+
+// those are convenience functions that operate directly on memory
+pub fn ser(packet: &UcPacket) -> Vec<u8> {
+    let mut c = Cursor::new(Vec::new());
+    write_packet(&packet, &mut c).unwrap();
+    
+    let mut out = Vec::new();
+    c.seek(SeekFrom::Start(0)).unwrap();
+    c.read_to_end(&mut out).unwrap();
+    out
 }
 
-#[derive(Debug)]
-#[derive(PartialEq)]
-pub enum UcPacket {
-    JM(AddressPair, String),
-    UM([u8; 6]),
-    KA(AddressPair),
-    PV(AddressPair, String, bool),
-    FR(AddressPair, u16, String),
-    ZM(AddressPair, Vec<u8>),
+pub fn deser(buf: &Vec<u8>) -> UcPacket {
+    let mut stream = Cursor::new(&buf);
+    read_packet(&mut stream).unwrap()
 }
 
+// Those functions operate on synchronous Read/Write objects
 fn write_address_pair<Writer: Write>(ap: &AddressPair, w: &mut Writer) -> std::io::Result<()> {
     w.write(&ap.a.to_le_bytes())?;
     w.write(&ap.b.to_le_bytes())?;
@@ -66,15 +68,11 @@ pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Res
             // parameter name
             w.write(name.as_bytes())?;
 
-            // padding with 5 zeros
-            w.write(&[0u8,0,0,0,0])?;
+            // padding with 3 zeros
+            w.write(&[0u8,0,0])?;
 
-            // 2 bytes at the end
-            if *val {
-                w.write(&[0x80, 0x3f])?;
-            } else {
-                w.write(&[0x00, 0x00])?;
-            }
+            // float
+            w.write(&val.to_le_bytes())?;
         }
 
         UcPacket::FR(ap, some_number, buf) => {
@@ -122,7 +120,7 @@ pub fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacke
     parse_packet_contents(&buf)
 }
 
-fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
+pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
     match (bytes[0], bytes[1]) {
         (b'J',b'M') => {
             let address_pair = AddressPair {
@@ -140,7 +138,11 @@ fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
             
             let data_len = bytes.len() - 7;
             // 803f or 0000
-            let val = bytes[bytes.len()-1] == 0x3f;
+            let f = bytes.len()-4;
+            let float_data: [u8; 4] = [bytes[f], bytes[f+1], bytes[f+2], bytes[f+3]];
+            let val = f32::from_le_bytes(float_data);
+
+            println!("Contents of PV packet: {:?}", &bytes[bytes.len()-6..bytes.len()]);
 
             Ok(UcPacket::PV(
                 address_pair,
@@ -186,22 +188,6 @@ fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::io::{Cursor, Read, Seek, SeekFrom};
-
-    fn ser(packet: &UcPacket) -> Vec<u8> {
-        let mut c = Cursor::new(Vec::new());
-        write_packet(&packet, &mut c).unwrap();
-        
-        let mut out = Vec::new();
-        c.seek(SeekFrom::Start(0)).unwrap();
-        c.read_to_end(&mut out).unwrap();
-        out
-    }
-
-    fn deser(buf: &Vec<u8>) -> UcPacket {
-        let mut stream = Cursor::new(&buf);
-        read_packet(&mut stream).unwrap()
-    }
 
     #[test]
     fn packet_um() {
@@ -277,7 +263,7 @@ mod test {
         let packet = UcPacket::PV(
             AddressPair { a: 0x6b, b: 0x66 },
             "line/ch1/mute".to_string(),
-            true
+            1.0
         );
         
         {
