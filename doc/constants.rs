@@ -14,3 +14,8 @@ pub const RETURN1_SOLO = "return/ch1/solo";
 
 pub const FX_RETURN1_MUTE = "fxreturn/ch1/mute";
 pub const FX_RETURN1_SOLO = "fxreturn/ch1/solo";
+
+
+line/ch1/activePresetSlotIndex
+
+pub const SPEAKER_VOLUME = "global/mainOutVolume";
