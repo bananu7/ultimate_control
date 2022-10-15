@@ -14,4 +14,5 @@ pub enum UcPacket {
     PV(AddressPair, String, f32),
     FR(AddressPair, u16, String),
     ZM(AddressPair, Vec<u8>),
+    PS(AddressPair, Vec<u8>),
 }

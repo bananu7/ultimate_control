@@ -91,6 +91,15 @@ pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Res
             write_address_pair(ap, w)?;
             w.write(buf)?;
         }
+
+        UcPacket::PS(ap, buf) => {
+            let size: u16 = ((buf.len() + 6) as u16).try_into().unwrap();
+            w.write(&size.to_le_bytes())?;
+            w.write(&[b'P', b'S'])?;
+            write_address_pair(ap, w)?;
+            w.write(buf)?;
+        }
+
     }
 
     Ok(())
@@ -121,28 +130,25 @@ pub fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacke
 }
 
 pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
+    // Most packets seem to share that
+    // UM probably does too but the first field is 0?
+    // TODO investigate
+    let address_pair = AddressPair {
+        a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
+        b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
+    };
+
     match (bytes[0], bytes[1]) {
         (b'J',b'M') => {
-            let address_pair = AddressPair {
-                a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
-                b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
-            };
             // ignore 32-bit size
             Ok(UcPacket::JM(address_pair, str::from_utf8(&bytes[10..]).unwrap().to_string()))
         }
         (b'P',b'V') => {
-            let address_pair = AddressPair {
-                a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
-                b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
-            };
-            
             let data_len = bytes.len() - 7;
             // 803f or 0000
             let f = bytes.len()-4;
             let float_data: [u8; 4] = [bytes[f], bytes[f+1], bytes[f+2], bytes[f+3]];
             let val = f32::from_le_bytes(float_data);
-
-            println!("Contents of PV packet: {:?}", &bytes[bytes.len()-6..bytes.len()]);
 
             Ok(UcPacket::PV(
                 address_pair,
@@ -155,31 +161,22 @@ pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
             Ok(UcPacket::UM(payload))
         }
         (b'F',b'R') => {
-            let address_pair = AddressPair {
-                a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
-                b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
-            };
             let some_number = (bytes[4] as u16) + (bytes[5] as u16) << 8;
             let string_query = str::from_utf8(&bytes[6..]).unwrap().to_string();
             Ok(UcPacket::FR(address_pair, some_number, string_query))
         }
         (b'K',b'A') => {
-            let address_pair = AddressPair {
-                a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
-                b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
-            };
             Ok(UcPacket::KA(address_pair))
         }
         (b'Z',b'M') => {
-            let address_pair = AddressPair {
-                a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
-                b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
-            };
-
             Ok(UcPacket::ZM(address_pair, bytes[6..].to_vec()))
+        }
+        (b'P',b'S') => {
+            Ok(UcPacket::PS(address_pair, bytes[6..].to_vec()))
         }
         _ => {
             println!("Unknown packet encountered - {}{}", bytes[0], bytes[1]);
+            println!("{:02X?}", bytes[2..].to_vec());
             Err(Error::new(ErrorKind::Other, "Invalid packet"))
         }
     }
