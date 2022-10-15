@@ -100,6 +100,20 @@ pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Res
             w.write(buf)?;
         }
 
+        UcPacket::PL(ap, name, names) => {
+            let size_of_names: usize = 
+                names.into_iter().map(|n|n.len()).sum::<usize>() + // each of the names
+                names.len(); // newlines and 0 at the end
+            let size: u16 = 6 + (name.len() as u16) + 7 + (size_of_names as u16);
+            w.write(&size.to_le_bytes())?;
+            w.write(&[b'P', b'L'])?;
+            write_address_pair(ap, w)?;
+            w.write(name.as_bytes())?;
+            w.write(&[0x00u8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])?;
+            for n in names {
+                w.write(n.as_bytes())?;
+            }
+        }
     }
 
     Ok(())
@@ -161,8 +175,8 @@ pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
             Ok(UcPacket::UM(payload))
         }
         (b'F',b'R') => {
-            let some_number = (bytes[4] as u16) + (bytes[5] as u16) << 8;
-            let string_query = str::from_utf8(&bytes[6..]).unwrap().to_string();
+            let some_number = (bytes[6] as u16) + (bytes[7] as u16) << 8;
+            let string_query = str::from_utf8(&bytes[8..]).unwrap().to_string();
             Ok(UcPacket::FR(address_pair, some_number, string_query))
         }
         (b'K',b'A') => {
@@ -173,6 +187,38 @@ pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
         }
         (b'P',b'S') => {
             Ok(UcPacket::PS(address_pair, bytes[6..].to_vec()))
+        }
+        (b'P',b'L') => {
+            // take AddressPair
+            // parse key until 7 zeroes
+            let mut key = String::new();
+            let mut lastbyte = 6;
+            for i in lastbyte .. bytes.len() {
+                if bytes[i] == 0x00 {
+                    // skip 7 zeroes
+                    lastbyte += 6;
+                    break;
+                } else {
+                    key.push(bytes[i] as char);
+                }
+            }
+            // parse each item until newline or 0 character
+            let mut names = Vec::new();
+            let mut name = String::new();
+            for i in lastbyte .. bytes.len() {
+                if bytes[i] == 0x00 { // end of packet
+                    names.push(name);
+                    break;
+                } else if bytes[i] == 0x0a { // newline
+                    names.push(name);
+                    name = String::new();
+                } else {
+                    name.push(bytes[i] as char)
+                }
+            }
+
+            // make sure all bytes were used
+            Ok(UcPacket::PL(address_pair, key, names))
         }
         _ => {
             println!("Unknown packet encountered - {}{}", bytes[0], bytes[1]);

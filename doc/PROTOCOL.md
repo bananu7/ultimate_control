@@ -114,7 +114,9 @@ The packet contains an AddressPair, a string identifier of the field, 3 bytes of
 
 ### KA
 
-Probably heartbeat packet. Contains an AddressPair.
+Probably heartbeat packet. Contains an AddressPair, but the first field
+is always 00. That could mean that the first field is the receiver field,
+and it's 0 here because it's only meant to upkeep the subscription?
 TBD.
 
 ### FR
@@ -134,4 +136,10 @@ TBD.
 ### PS
 
 Probably for selecting presets.
+TBD.
+
+### PL
+
+Looks like it's used for preset lists for specific fat channel block presets.
+(i.e. not full device presets, but e.g. EQ presets)
 TBD.
