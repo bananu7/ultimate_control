@@ -1,4 +1,6 @@
 use std::io::{Error, ErrorKind};
+use std::string::ToString;
+
 use futures::StreamExt;
 use futures::stream::SplitStream;
 use futures::sink::SinkExt;
@@ -18,6 +20,9 @@ pub struct AsyncUcDriver {
     cmd_tx: mpsc::Sender<UcPacket>,
 }
     
+fn to_io_err(e: impl ToString) -> std::io::Error {
+    Error::new(ErrorKind::Other, e.to_string())
+}
 
 impl AsyncUcDriver {
     pub async fn new() -> std::io::Result<AsyncUcDriver> {
@@ -36,17 +41,24 @@ impl AsyncUcDriver {
 
             loop {
                 interval.tick().await;
-                hb_tx.send(
+                let res = hb_tx.send(
                     UcPacket::KA(AddressPair { a: 0x6b, b: 0x66 })
                 ).await;
+
+                // explicit break to annotate return type
+                // and avoid turbofish "unreachable"
+                if let Some(e) = res.err() {
+                    break to_io_err(e);
+                }
             }
         });
 
         // spawn sender task
         tokio::spawn(async move {
             while let Some(packet) = rx.recv().await {
-                writer.send(packet).await;
+                writer.send(packet).await?;
             }
+            Ok::<(), std::io::Error>(())
         });
 
         Ok(AsyncUcDriver {
@@ -62,7 +74,7 @@ impl AsyncUcDriver {
                 AddressPair{ a: 0x6b, b: 0x66 },
                 sub_msg_uc.to_string()
             )
-        ).await.map_err(|x| Error::new(ErrorKind::Other, x.to_string()))
+        ).await.map_err(to_io_err)
     }
 
     pub async fn ch1_mute(&mut self, mute: bool) -> std::io::Result<()> {
@@ -72,7 +84,7 @@ impl AsyncUcDriver {
                 "line/ch1/mute".to_string(),
                 if mute { 1.0 } else { 0.0 }
             )
-        ).await.map_err(|x| Error::new(ErrorKind::Other, x.to_string()))
+        ).await.map_err(to_io_err)
     }
 
     pub async fn ch1_volume(&mut self, volume: f32) -> std::io::Result<()> {
@@ -82,7 +94,7 @@ impl AsyncUcDriver {
                 "line/ch1/volume".to_string(),
                 volume,
             )
-        ).await.map_err(|x| Error::new(ErrorKind::Other, x.to_string()))
+        ).await.map_err(to_io_err)
     }
 
     pub async fn read_response(&mut self) {
