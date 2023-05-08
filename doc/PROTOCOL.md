@@ -142,4 +142,6 @@ TBD.
 
 Looks like it's used for preset lists for specific fat channel block presets.
 (i.e. not full device presets, but e.g. EQ presets)
+
+WRONG, it's for the device presets actually?
 TBD.
