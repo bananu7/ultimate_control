@@ -114,7 +114,7 @@ The packet contains an AddressPair, a string identifier of the field, 3 bytes of
 
 ### KA
 
-Probably heartbeat packet. Contains an AddressPair, but the first field
+"Keep-Alive". Contains an AddressPair, but the first field
 is always 00. That could mean that the first field is the receiver field,
 and it's 0 here because it's only meant to upkeep the subscription?
 TBD.
