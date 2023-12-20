@@ -43,11 +43,12 @@ pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Res
             w.write(s.as_bytes())?;
         }
 
-        UcPacket::UM(buf) => {
-            let size: u16 = (buf.len() as u16 + 2).try_into().unwrap();
+        UcPacket::UM{ap, udp_port} => {
+            let size: u16 = 8;
             w.write(&size.to_le_bytes())?;
             w.write(&[b'U', b'M'])?;
-            w.write(buf)?;
+            write_address_pair(ap, w)?;
+            w.write(&udp_port.to_le_bytes())?;
         }
 
         UcPacket::KA(ap) => {
@@ -145,9 +146,6 @@ pub fn read_packet<Reader: Read>(stream: &mut Reader) -> std::io::Result<UcPacke
 }
 
 pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
-    // Most packets seem to share that
-    // UM probably does too but the first field is 0?
-    // TODO investigate
     let address_pair = AddressPair {
         a: (bytes[2] as u16) | ((bytes[3] as u16) << 8),
         b: (bytes[4] as u16) | ((bytes[5] as u16) << 8),
@@ -172,8 +170,15 @@ pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
             ))
         }
         (b'U',b'M') => {
-            let payload: [u8; 6] = bytes[2..8].try_into().expect("Not enough bytes for UM packet");
-            Ok(UcPacket::UM(payload))
+            if bytes.len() != 8 {
+                return Err(Error::other("Wrong amount of bytes for UM packet"));
+            }
+            let udp_port = u16::from_le_bytes(bytes[6..8].try_into().unwrap());
+
+            Ok(UcPacket::UM{
+                ap: address_pair,
+                udp_port: udp_port,
+            })
         }
         (b'F',b'R') => {
             let some_number = (bytes[6] as u16) + (bytes[7] as u16) << 8;

@@ -9,12 +9,15 @@ pub struct AddressPair {
 #[derive(PartialEq)]
 pub enum UcPacket {
     JM(AddressPair, String),
-    UM([u8; 6]),
+    UM {
+        ap: AddressPair,
+        udp_port: u16,
+    },
     KA(AddressPair),
     PV(AddressPair, String, f32),
     FR(AddressPair, u16, String),
 
-    ZM{ 
+    ZM { 
         ap: AddressPair,
         unknown: u32,
         compressed_payload: Vec<u8>,

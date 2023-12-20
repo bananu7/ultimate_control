@@ -84,15 +84,17 @@ impl AsyncUcDriver {
     }
 
     async fn send(&mut self, packet: UcPacket) -> std::io::Result<()> {
-        println!("-> {:02X?}", packet);
+        print_packet(&packet, true);
         self.cmd_tx.send(packet).await.map_err(to_io_err)
     }
 
     // Notify the device about UDP port number to send subscription data to
     async fn um(&mut self, port_number: u16) -> std::io::Result<()> {
-        let port_bytes = port_number.to_le_bytes();
         self.send(
-            UcPacket::UM([0x00,0x00,0x66,0x00,port_bytes[0],port_bytes[1]])
+            UcPacket::UM {
+                ap: AddressPair{ a: 0, b: 0x66 },
+                udp_port: port_number,
+            }
         ).await
     }
 
@@ -132,7 +134,7 @@ impl AsyncUcDriver {
     pub async fn read_response(&mut self) {
         while let Some(data) = self.reader.next().await {
             match data {
-                Ok(packet) => print_packet(&packet),
+                Ok(packet) => print_packet(&packet, false),
                 Err(e) => println!("Packet parsing failed! - {}", e.to_string())
             }
             

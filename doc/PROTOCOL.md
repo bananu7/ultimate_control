@@ -30,6 +30,8 @@ So far the structure of every one of them seems to be:
  | ...       |
 ```
 
+The size field includes following data, so the packet identifier and packet data.
+
 ## Packet types
 
 Those packets are identified by two bytes in the packet header. So far
@@ -130,6 +132,10 @@ No idea what UM stands for, but this packet is used together with the subscripti
 to indicate a random open UDP port that the device is supposed to send updates to.
 
 The last 2 bytes of data are the port number.
+
+The address pair in the UM packet seems to suggest that it's an identification packet.
+The first field of the ap (a / dst) is always 0, while the second field (b / src) is a
+value that later gets used in comms. Maybe the devices can route traffic between each other?
 
 ### ZM
 
