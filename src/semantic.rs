@@ -4,8 +4,8 @@ use crate::types::{UcPacket};
 
 pub fn print_packet(packet: &UcPacket) {
     match packet {
-        UcPacket::ZM(address_pair, buf) => {
-            println!("<- ZM ({:02X?}, {:02X?})", address_pair, decode_zm_packet_data(buf));
+        UcPacket::ZM{ap, compressed_payload} => {
+            println!("<- ZM ({:02X?}, {:02X?})", ap, decode_zm_packet_data(compressed_payload));
         }
         _ => {
             println!("<- {:02X?}", packet);
