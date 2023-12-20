@@ -126,8 +126,10 @@ TBD.
 
 ### UM
 
-No idea what that is.
-TBD.
+No idea what UM stands for, but this packet is used together with the subscription packet
+to indicate a random open UDP port that the device is supposed to send updates to.
+
+The last 2 bytes of data are the port number.
 
 ### ZM
 

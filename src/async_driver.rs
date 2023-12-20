@@ -67,6 +67,14 @@ impl AsyncUcDriver {
         })
     }
 
+    // Notify the device about UDP port number to send subscription data to
+    pub async fn um(&mut self, port_number: u16) -> std::io::Result<()> {
+        let port_bytes = port_number.to_le_bytes();
+        self.cmd_tx.send(
+            UcPacket::UM([0x00,0x00,0x66,0x00,port_bytes[0],port_bytes[1]])
+        ).await.map_err(to_io_err)
+    }
+
     pub async fn subscribe(&mut self) -> std::io::Result<()> {
         let sub_msg_uc =r#"{"id": "Subscribe","clientName": "Universal Control","clientInternalName": "ucapp","clientType": "PC","clientDescription": "DESKTOP","clientIdentifier": "DESKTOP","clientOptions": "perm users","clientEncoding": 23117}"#;
         self.cmd_tx.send(
