@@ -131,7 +131,9 @@ TBD.
 
 ### ZM
 
-TBD.
+Most likely "zip message". Contains data compressed with `zlib`. In my testing
+the magic header indicated `7801`, meaning "No Compression/low" - [source](https://stackoverflow.com/questions/9050260/what-does-a-zlib-header-look-like.)
+
 
 ### PS
 
