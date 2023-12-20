@@ -134,7 +134,10 @@ The last 2 bytes of data are the port number.
 ### ZM
 
 Most likely "zip message". Contains data compressed with `zlib`. In my testing
-the magic header indicated `7801`, meaning "No Compression/low" - [source](https://stackoverflow.com/questions/9050260/what-does-a-zlib-header-look-like.)
+the magic header indicated `7801` (and `785E`), meaning "No Compression/low" - [source](https://stackoverflow.com/questions/9050260/what-does-a-zlib-header-look-like.)
+
+Bytes 0..3 are unknown but likely decompressed size as u32 (+1 for `\0`?)
+Bytes 4&5 are zlib magic number. From byte 6 onwards the payload starts.
 
 
 ### PS
