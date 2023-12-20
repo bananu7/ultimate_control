@@ -8,7 +8,7 @@ use futures::sink::SinkExt;
 use tokio::time::interval;
 use tokio::time::Duration;
 use tokio_util::codec::Framed;
-use tokio::net::TcpStream;
+use tokio::net::{TcpStream, UdpSocket};
 
 use crate::types::{UcPacket, AddressPair};
 use crate::async_packet::PacketCodec;
@@ -19,6 +19,7 @@ use tokio::sync::mpsc;
 pub struct AsyncUcDriver {
     reader: SplitStream<Framed<tokio::net::TcpStream, PacketCodec>>,
     cmd_tx: mpsc::Sender<UcPacket>,
+    udp_port: u16,
 }
     
 fn to_io_err(e: impl ToString) -> std::io::Error {
@@ -62,28 +63,50 @@ impl AsyncUcDriver {
             Ok::<(), std::io::Error>(())
         });
 
+
+        let udp_socket = UdpSocket::bind("127.0.0.1:0").await?;
+        let udp_port = udp_socket.local_addr()?.port();
+
+        let mut buf = [0; 1024];
+        // spawn udp reader task
+        tokio::spawn(async move{
+            while let Ok((len, addr)) = udp_socket.recv_from(&mut buf).await {
+                println!("{:?} bytes received from {:?}", len, addr);
+            }
+            Ok::<(), std::io::Error>(())
+        });
+
         Ok(AsyncUcDriver {
             reader: reader,
             cmd_tx: tx.clone(),
+            udp_port: udp_port,
         })
     }
 
+    async fn send(&mut self, packet: UcPacket) -> std::io::Result<()> {
+        println!("-> {:02X?}", packet);
+        self.cmd_tx.send(packet).await.map_err(to_io_err)
+    }
+
     // Notify the device about UDP port number to send subscription data to
-    pub async fn um(&mut self, port_number: u16) -> std::io::Result<()> {
+    async fn um(&mut self, port_number: u16) -> std::io::Result<()> {
         let port_bytes = port_number.to_le_bytes();
-        self.cmd_tx.send(
+        self.send(
             UcPacket::UM([0x00,0x00,0x66,0x00,port_bytes[0],port_bytes[1]])
-        ).await.map_err(to_io_err)
+        ).await
     }
 
     pub async fn subscribe(&mut self) -> std::io::Result<()> {
-        let sub_msg_uc =r#"{"id": "Subscribe","clientName": "Universal Control","clientInternalName": "ucapp","clientType": "PC","clientDescription": "DESKTOP","clientIdentifier": "DESKTOP","clientOptions": "perm users","clientEncoding": 23117}"#;
-        self.cmd_tx.send(
+        println!("Subscribing on UDP port {}", self.udp_port);
+        self.um(self.udp_port).await?;
+
+        let sub_msg_uc =r#"{"id": "Subscribe","clientName": "Universal Control","clientInternalName": "ucapp","clientType": "PC","clientDescription": "DESKTOP-VLS3MG2","clientIdentifier": "DESKTOP-VLS3MG2","clientOptions": "perm users","clientEncoding": 23117}"#;
+        self.send(
             UcPacket::JM (
                 AddressPair{ a: 0x6b, b: 0x66 },
                 sub_msg_uc.to_string()
             )
-        ).await.map_err(to_io_err)
+        ).await
     }
 
     pub async fn ch1_mute(&mut self, mute: bool) -> std::io::Result<()> {
