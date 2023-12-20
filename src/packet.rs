@@ -84,11 +84,12 @@ pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Res
             w.write(buf.as_bytes())?;
         }
 
-        UcPacket::ZM{ap, compressed_payload} => {
+        UcPacket::ZM{ap, unknown, compressed_payload} => {
             let size: u16 = ((compressed_payload.len() + 6) as u16).try_into().unwrap();
             w.write(&size.to_le_bytes())?;
             w.write(&[b'Z', b'M'])?;
             write_address_pair(ap, w)?;
+            w.write(&unknown.to_le_bytes())?;
             w.write(compressed_payload)?;
         }
 
@@ -183,7 +184,11 @@ pub fn parse_packet_contents(bytes: &Vec<u8>) -> std::io::Result<UcPacket> {
             Ok(UcPacket::KA(address_pair))
         }
         (b'Z',b'M') => {
-            Ok(UcPacket::ZM{ap: address_pair, compressed_payload: bytes[6..].to_vec()})
+            Ok(UcPacket::ZM{
+                ap: address_pair,
+                unknown: u32::from_le_bytes(bytes[6..10].try_into().unwrap()),
+                compressed_payload: bytes[10..].to_vec()
+            })
         }
         (b'P',b'S') => {
             Ok(UcPacket::PS(address_pair, bytes[6..].to_vec()))

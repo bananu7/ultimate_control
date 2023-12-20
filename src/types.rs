@@ -13,7 +13,13 @@ pub enum UcPacket {
     KA(AddressPair),
     PV(AddressPair, String, f32),
     FR(AddressPair, u16, String),
-    ZM{ ap: AddressPair, compressed_payload: Vec<u8> },
+
+    ZM{ 
+        ap: AddressPair,
+        unknown: u32,
+        compressed_payload: Vec<u8>,
+    },
+
     PS(AddressPair, Vec<u8>),
     PL(AddressPair, String, Vec<String>),
 }
