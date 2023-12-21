@@ -255,7 +255,10 @@ mod test {
             0x00,0x00,0x65,0x00,0x5e,0xf1,
         ];
 
-        let packet = UcPacket::UM([0x00,0x00,0x65,0x00,0x5e,0xf1]);
+        let packet = UcPacket::UM{ 
+            ap: AddressPair{a: 0, b: 0x65},
+            udp_port: 61790, 
+        };
         
         {
             let out = ser(&packet);

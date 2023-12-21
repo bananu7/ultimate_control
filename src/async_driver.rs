@@ -112,23 +112,23 @@ impl AsyncUcDriver {
     }
 
     pub async fn ch1_mute(&mut self, mute: bool) -> std::io::Result<()> {
-        self.cmd_tx.send(
+        self.send(
             UcPacket::PV (
                 AddressPair{ a: 0x6b, b: 0x66 },
                 "line/ch1/mute".to_string(),
                 if mute { 1.0 } else { 0.0 }
             )
-        ).await.map_err(to_io_err)
+        ).await
     }
 
     pub async fn ch1_volume(&mut self, volume: f32) -> std::io::Result<()> {
-        self.cmd_tx.send(
+        self.send(
             UcPacket::PV (
                 AddressPair{ a: 0x6b, b: 0x66 },
                 "line/ch1/volume".to_string(),
                 volume,
             )
-        ).await.map_err(to_io_err)
+        ).await
     }
 
     pub async fn read_response(&mut self) {
