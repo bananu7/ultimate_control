@@ -1,10 +1,10 @@
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
+use bytes::{Buf, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
-use bytes::{BytesMut, Buf};
 
-use crate::types::*;
 use crate::packet::{parse_packet_contents, ser};
+use crate::types::*;
 
 pub struct PacketCodec {}
 
@@ -12,22 +12,19 @@ impl Decoder for PacketCodec {
     type Item = UcPacket;
     type Error = std::io::Error;
 
-    fn decode(
-        &mut self,
-        src: &mut BytesMut
-    ) -> Result<Option<Self::Item>, Self::Error> {
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if src.len() < 6 {
             // Not enough data to read length marker.
             return Ok(None);
         }
 
         // verify the header
-        if  src[0] != b'U' || // 'U'
+        if src[0] != b'U' || // 'U'
             src[1] != b'C' || // 'C'
             src[2] != 0u8  ||
             src[3] != 1u8
         {
-            return Err(Error::new(ErrorKind::Other, "header magic bytes invalid"));
+            return Err(Error::other("header magic bytes invalid"));
         }
 
         // Read length marker.
@@ -55,12 +52,10 @@ impl Decoder for PacketCodec {
         // Convert the data to a packet; header already stripped
         match parse_packet_contents(&data) {
             Ok(p) => Ok(Some(p)),
-            Err(parse_error) => {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    parse_error,
-                ))
-            },
+            Err(parse_error) => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                parse_error,
+            )),
         }
     }
 }

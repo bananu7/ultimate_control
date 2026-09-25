@@ -1,5 +1,5 @@
+use tokio::time::{Duration, sleep};
 use ultimate_control::async_driver::AsyncUcDriver;
-use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -17,7 +17,6 @@ async fn main() -> std::io::Result<()> {
     }
 
     driver.read_response().await;
-        
+
     Ok(())
 }
-
