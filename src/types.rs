@@ -1,12 +1,10 @@
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct AddressPair {
     pub a: u16,
     pub b: u16,
 }
 
-#[derive(Debug)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum UcPacket {
     JM(AddressPair, String),
     UM {
@@ -17,7 +15,7 @@ pub enum UcPacket {
     PV(AddressPair, String, f32),
     FR(AddressPair, u16, String),
 
-    ZM { 
+    ZM {
         ap: AddressPair,
         unknown: u32,
         compressed_payload: Vec<u8>,
