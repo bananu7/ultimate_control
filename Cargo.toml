@@ -1,14 +1,17 @@
 [package]
 name = "ultimate_control"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
+description = "Reverse-engineered Rust client for the PreSonus Universal Control (UCNET) protocol"
+license = "MIT"
+repository = "https://github.com/bananu7/ultimate_control"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.21.2", features = ["full"] }
-tokio-util = { version = "0.7.4", features=["net", "codec"] }
-tokio-stream = { version = "0.1.11" }
-futures = { version = "0.3.24" }
-bytes = { version = "1.2.1" }
-miniz_oxide = { version = "0.7.1", features = ["std"] }
+tokio = { version = "1.53", features = ["full"] }
+tokio-util = { version = "0.7", features = ["net", "codec"] }
+futures = "0.3"
+bytes = "1.12"
+miniz_oxide = { version = "0.9", features = ["std"] }
