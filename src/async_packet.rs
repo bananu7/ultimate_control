@@ -8,6 +8,19 @@ use crate::types::*;
 
 pub struct PacketCodec {}
 
+/// Best-effort split of a frame body into (tag, address pair, payload),
+/// tolerating frames shorter than the 6-byte minimum.
+fn split_raw(data: &[u8]) -> ([u8; 2], AddressPair, Vec<u8>) {
+    let byte = |i: usize| data.get(i).copied().unwrap_or(0);
+    let tag = [byte(0), byte(1)];
+    let ap = AddressPair {
+        a: u16::from_le_bytes([byte(2), byte(3)]),
+        b: u16::from_le_bytes([byte(4), byte(5)]),
+    };
+    let payload = data.get(6..).unwrap_or(&[]).to_vec();
+    (tag, ap, payload)
+}
+
 impl Decoder for PacketCodec {
     type Item = UcPacket;
     type Error = std::io::Error;
@@ -49,13 +62,27 @@ impl Decoder for PacketCodec {
         let data = src[6..6 + length].to_vec();
         src.advance(6 + length);
 
-        // Convert the data to a packet; header already stripped
+        // Convert the data to a packet; header already stripped.
+        //
+        // A decode error makes `Framed` end the stream for good, which is far
+        // worse than skipping one bad frame, so a frame that is well delimited
+        // but does not parse is surfaced as `Unknown` instead of an error.
         match parse_packet_contents(&data) {
             Ok(p) => Ok(Some(p)),
-            Err(parse_error) => Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                parse_error,
-            )),
+            Err(parse_error) => {
+                eprintln!(
+                    "skipping unparseable {:?} frame ({} bytes): {}",
+                    String::from_utf8_lossy(&data[..data.len().min(2)]),
+                    data.len(),
+                    parse_error
+                );
+                let (tag, ap, payload) = split_raw(&data);
+                Ok(Some(UcPacket::Unknown {
+                    tag,
+                    ap,
+                    data: payload,
+                }))
+            }
         }
     }
 }

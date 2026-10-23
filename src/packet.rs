@@ -122,6 +122,14 @@ pub fn write_packet<Writer: Write>(p: &UcPacket, w: &mut Writer) -> std::io::Res
             }
             w.write_all(&[0u8])?;
         }
+
+        UcPacket::Unknown { tag, ap, data } => {
+            let size = size_u16(data.len() + 6)?;
+            w.write_all(&size.to_le_bytes())?;
+            w.write_all(tag)?;
+            write_address_pair(ap, w)?;
+            w.write_all(data)?;
+        }
     }
 
     Ok(())
@@ -230,14 +238,11 @@ pub fn parse_packet_contents(bytes: &[u8]) -> std::io::Result<UcPacket> {
 
             Ok(UcPacket::PL(address_pair, key, names))
         }
-        _ => {
-            println!(
-                "Unknown packet encountered - {}{}",
-                bytes[0] as char, bytes[1] as char
-            );
-            println!("{:02X?}", &bytes[2..]);
-            Err(Error::other("Invalid packet"))
-        }
+        (x, y) => Ok(UcPacket::Unknown {
+            tag: [x, y],
+            ap: address_pair,
+            data: bytes[6..].to_vec(),
+        }),
     }
 }
 
@@ -366,6 +371,27 @@ mod test {
         );
 
         roundtrip(&packet, &buf);
+    }
+
+    #[test]
+    fn packet_unknown_type_roundtrips() {
+        let mut buf = vec![
+            // UC01
+            0x55, 0x43, 0x00, 0x01, // size - 6 + 3
+            0x09, 0x00, // "CK" - a type we do not decode
+            0x43, 0x4b, // address pair
+            0x6b, 0x00, 0x66, 0x00,
+        ];
+        buf.extend_from_slice(&[1, 2, 3]);
+
+        let packet = UcPacket::Unknown {
+            tag: *b"CK",
+            ap: AddressPair { a: 0x6b, b: 0x66 },
+            data: vec![1, 2, 3],
+        };
+
+        roundtrip(&packet, &buf);
+        assert_eq!(packet.tag(), *b"CK");
     }
 
     #[test]
